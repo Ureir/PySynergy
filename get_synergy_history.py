@@ -32,8 +32,8 @@ from CCMHistory import CCMHistory
 from load_configuration import load_config_file
 
 def start_sessions(config):
-    ccm = SynergySession(config['database'], offline=config['offline'])
-    ccm_pool = SynergySessions(database=config['database'], nr_sessions=config['max_sessions'], offline=config['offline'])
+    ccm = SynergySession(config['database'])
+    ccm_pool = SynergySessions(database=config['database'], nr_sessions=config['max_sessions'])
 
     return ccm, ccm_pool
 
@@ -72,7 +72,8 @@ def main():
     log_file = config['log_file']
     if not log_file.endswith('.log'):
         log_file += '.log'
-    logger.basicConfig(filename=log_file, level=logger.DEBUG)
+    FORMAT = '%(asctime)-15s %(message)s'
+    logger.basicConfig(filename=log_file, level=logger.DEBUG, format=FORMAT)
 
     ccm, ccm_pool = start_sessions(config)
     history = load_history(config)
@@ -80,9 +81,9 @@ def main():
     ccm_hist = CCMHistory(ccm, ccm_pool, history, config['data_file'])
     history = ccm_hist.get_project_history(config['master'], config['base_project'])
 
-    if config.has_key('heads'):
-        for head in config['heads']:
-            history = ccm_hist.get_project_history(head, config['base_project'])
+#    if config.has_key('heads'):
+#        for head in config['heads']:
+#            history = ccm_hist.get_project_history(head, config['base_project'])
         
     fh = open(config['data_file'] + '.p', 'wb')
     cPickle.dump(history, fh, cPickle.HIGHEST_PROTOCOL)
