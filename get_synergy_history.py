@@ -32,8 +32,8 @@ from CCMHistory import CCMHistory
 from load_configuration import load_config_file
 
 def start_sessions(config):
-    ccm = SynergySession(config['database'], offline=config['offline'])
-    ccm_pool = SynergySessions(database=config['database'], nr_sessions=config['max_sessions'], offline=config['offline'])
+    ccm = SynergySession(server=config['server'], database=config['database'], offline=config['offline'])
+    ccm_pool = SynergySessions(server=config['server'], database=config['database'], nr_sessions=config['max_sessions'], offline=config['offline'])
 
     return ccm, ccm_pool
 

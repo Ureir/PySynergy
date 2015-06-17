@@ -496,7 +496,7 @@ def create_ccm_session_from_config():
     config = cPickle.load(f)
     f.close()
 
-    ccm = SynergySession(config['database'])
+    ccm = SynergySession(config['server'], config['database'])
     return ccm
 
 def get_content(object, ccm):

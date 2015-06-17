@@ -24,6 +24,7 @@
 ;
 
 [synergy]
+server=                                                     ; synergy server (http://<server>:<port>)
 database=                                                   ; database
 base_project=                                               ; starting point for initial commit in git
 heads=                                                      ; comma separated list of heads to include

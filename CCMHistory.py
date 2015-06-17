@@ -26,12 +26,9 @@ from _collections import deque
 
 import cPickle
 import os
-import sys
 import logging as logger
 from SynergyObject import SynergyObject
 
-import SynergySession
-import SynergySessions
 from TaskObject import TaskObject
 import ccm_cache
 from SynergyUtils import ObjectHistory, TaskUtil
