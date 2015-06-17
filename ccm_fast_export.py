@@ -24,7 +24,7 @@ CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING 
 """
 from _collections import deque
 import cPickle
-import logging as logger
+import logging 
 from subprocess import Popen, PIPE
 import time
 from pygraph.classes.graph import graph
@@ -38,14 +38,17 @@ import ccm_history_to_graphs as htg
 import re
 from users import users
 
+logger = logging.getLogger("ccm_fast_export.log")
+
 object_mark_lookup = {}
 users
 
 def ccm_fast_export(releases, graphs):
     global acn_ancestors
+    acn_ancestors = []
     global users
     users = users()
-    logger.basicConfig(filename='ccm_fast_export.log',level=logger.DEBUG)
+#    logger.basicConfig(filename='ccm_fast_export.log',level=logger.DEBUG)
 
     commit_lookup = {}
 
