@@ -27,20 +27,20 @@ from subprocess import Popen, PIPE
 import logging as logger
 
 class user(object):
-    def __init__(self):
-        self.lu = ldap_user()
-        self.fu = finger_user()
+#    def __init__(self):
+        #self.lu = ldap_user()
+        #self.fu = finger_user()
 
     def get_user_by_uid(self, username):
         #try ldap
-        user = self.lu.get_user_by_uid(username)
+#        user = self.lu.get_user_by_uid(username)
 
-        if not user:
+#        if not user:
             # try finger...
-            user = self.fu.get_user_by_uid(username)
-        if not user:
+#            user = self.fu.get_user_by_uid(username)
+#        if not user:
             #create default
-            user = {'name': username, 'mail': username + '@' + get_email_domain()}
+        user = {'name': username, 'mail': username + '@' + get_email_domain()}
         return user
 
 def get_email_domain():
