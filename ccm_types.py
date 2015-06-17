@@ -36,12 +36,12 @@ def get_types_and_permissions(ccm):
 
     # Map each type to permission
     for t in types:
-        lines = ccm.attr(t.get_object_name()).option("-s").option("file_acs").run().splitlines()
-        for line in lines:
-            if line.startswith("working"):
-                mode = line.split(":")[-1]
-                type_dict[t.get_name()] = '10' + mode.strip()
-                break
+        #lines = ccm.attr(t.get_object_name()).option("-s").option("file_acs").run().splitlines()
+        #for line in lines:
+        #    if line.startswith("working"):
+        #        mode = line.split(":")[-1]
+                type_dict[t.get_name()] = '100644'
+      #          break
     return type_dict
 
 def get_all_types(ccm):
@@ -55,16 +55,16 @@ def get_all_types(ccm):
 
 def get_super_types(ccm):
     type_dict = {}
-    types = get_all_types(ccm)
+    #types = get_all_types(ccm)
 
     # Map each type to permission
-    for t in types:
-        line = ccm.attr(t.get_object_name()).option("-s").option("super_type").run().strip()
-        if 'Attribute \'super_type\'' in line:
-            # just skip
-            continue
-        else:
-            type_dict[t.get_name()] = line
+    #for t in types:
+    #    line = ccm.attr(t.get_object_name()).option("-s").option("super_type").run().strip()
+    #    if 'Attribute \'super_type\'' in line:
+    #        # just skip
+    #        continue
+    #    else:
+    #        type_dict[t.get_name()] = line
 
     return type_dict
 
@@ -73,4 +73,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
