@@ -122,7 +122,7 @@ class SynergySession(object):
 
         if not self.offline:
             # retry all commands 3 times to patch over ccm concurrency issues
-            for retrycount in range(3):
+            for retrycount in range(5):
                 # stagger parallel commands to patch over ccm concurrency issues
                 if (self.sessionID >= 0):
                     time.sleep(0.2 * random.random())
@@ -137,6 +137,11 @@ class SynergySession(object):
 
                 if not stderr:
                     break
+                
+                if "Cannot connect to router" in stderr:
+                    # Synergy Wartungsfenster? X Sekunden warten
+                    time.sleep(30 * 60)
+
 
             if stderr:
                 raise SynergyException('Error while running the Synergy command: %s \nError message: %s' % (command, stderr))
