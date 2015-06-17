@@ -27,8 +27,14 @@ import cPickle
 import ccm_history_to_graphs as cg
 import ccm_fast_export as cfe
 from load_configuration import load_config_file
+import logging as logger
 
-data_file = load_config_file()['data_file']
+config = load_config_file()
+# Set up logger
+log_file = config['log_file']
+log_file += '-export.log'
+logger.basicConfig(filename=log_file, level=logger.DEBUG)
+data_file = config['data_file']
 data_file += '.p'
 f = open(data_file, 'rb')
 history = cPickle.load(f)
