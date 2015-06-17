@@ -80,7 +80,7 @@ def get_object(obj, ccm=None):
                 #couldn't start Synergy on this computer
                 raise ObjectCacheException("Couldn't start Synergy")
         try:
-#            logger.debug("Get %s from Synergy", obj)
+            logger.debug("Get %s from Synergy", obj)
             object_data = get_object_from_ccm(obj, ccm, ccm_cache_path)
         except ObjectCacheException:
             raise ObjectCacheException("Couldn't extract %s from Synergy" % obj)
@@ -271,7 +271,9 @@ def get_object_from_ccm(four_part_name, ccm, ccm_cache_path):
     """Try to get the object's meta data from Synergy"""
     # convert the four-part-name to a synergy object:
     delim = ccm.delim()
-    synergy_object = SynergyObject(four_part_name, delim)
+    #dcm_delim = ccm.dcm_delim()
+    dcm_delim = '#'
+    synergy_object = SynergyObject(four_part_name, delim, dcm_delim)
     try:
         res = ccm.query("name='{0}' and version='{1}' and type='{2}' and instance='{3}'".format(synergy_object.get_name(), synergy_object.get_version(), synergy_object.get_type(), synergy_object.get_instance())).format("%objectname").format("%owner").format("%status").format("%create_time").format("%task").run()
     except SynergyException:
@@ -279,12 +281,15 @@ def get_object_from_ccm(four_part_name, ccm, ccm_cache_path):
     if res:
         synergy_object.status = res[0]['status']
         synergy_object.author =  res[0]['owner']
-        synergy_object.created_time = datetime.strptime(res[0]['create_time'], "%a %b %d %H:%M:%S %Y")
+        synergy_object.created_time = datetime.strptime(res[0]['create_time'], "%d.%m.%y %H:%M")
+        # synergy_object.created_time = datetime.strptime(res[0]['create_time'], "%a %b %d %H:%M:%S %Y")
         tasks = []
+#        logger.debug(res[0]['task'])
         for t in res[0]['task'].split(','):
             if t != '<void>':
+                logger.debug("Adding task %s", t)
                 if ':task:' not in t:
-                    tasks.append(task_to_four_part(t, delim))
+                    tasks.append(task_to_four_part(t, delim, dcm_delim))
                 else:
                     tasks.append(t)
         synergy_object.tasks = tasks
@@ -448,9 +453,10 @@ def get_releases(object, ccm):
     return releases
 
 
-def task_to_four_part(task, delim):
+def task_to_four_part(task, delim, dcm_delim):
     # Task four-part-name: task<tasknumber>-1:task:instance
-    # in Synergy 7.1 the instance of a task is always 'probtrac'
+    logger.debug("Get task %s", task)
+#    split = task.split(dcm_delim)
     four_part = ['task', task, delim, '1:task:', 'probtrac']
     return ''.join(four_part)
 
