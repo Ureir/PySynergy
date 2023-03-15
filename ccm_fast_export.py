@@ -529,6 +529,13 @@ def create_commit_msg_from_task(tasks, task_name):
             if not len(v.strip()):
                 continue
             msg.append('Synergy-'+k.replace('_', '-')+': '+v.strip().replace("\n", " "))
+            
+        crs = task.get_change_requests()
+        # Process the four-part-name & Apply same format as attributes
+        for cr in crs:
+                cr_txt = 'Synergy-problem-number: ' + cr
+                msg.append(cr_txt)
+
         msg.append('\n')
     return '\n'.join(msg)
 

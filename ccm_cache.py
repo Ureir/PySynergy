@@ -237,6 +237,7 @@ def create_task_object(synergy_object, ccm):
     object = TaskObject(synergy_object.get_object_name(), synergy_object.get_separator(), synergy_object.get_author(), synergy_object.get_status(), synergy_object.get_created_time(), synergy_object.get_tasks())
     object.released_projects = get_projects_for_task(synergy_object, ccm)
     object.baselines = get_baselines_for_task(synergy_object, ccm)
+    object.change_requests = get_change_requests_for_task(synergy_object, ccm)
     return object
 
 def create_file_or_dir_object(synergy_object, ccm):
@@ -342,6 +343,8 @@ def update_object_cache_with_new_ccm_db_info(object, ccm):
             object.released_projects = list(set(object.released_projects + released_projects))
             baselines = get_baselines_for_task(object, ccm)
             object.baselines = list(set(object.baselines + baselines))
+            change_requests = get_change_requests_for_task(object,ccm)
+            object.change_requests = list( set(object.change_requests + change_requests))
         else:
             releases = get_releases(object, ccm)
             object.releases = list(set(object.releases + releases))
@@ -425,7 +428,7 @@ def get_projects_for_task(object, ccm):
         result = ccm.finduse(object.get_object_name()).option('-task').option('-released_proj').run().splitlines()
     except SynergyException:
         result = []
-    for p in result[1:]: # aviod [0], the task synopsis
+    for p in result[1:]: # avoid [0], the task synopsis
         projects.append(p.strip())
     return projects
 
@@ -439,6 +442,16 @@ def get_baselines_for_task(object, ccm):
     for b in res:
         baselines.append(b['objectname'])
     return baselines
+
+def get_change_requests_for_task(object, ccm):
+    change_requests = []
+    try:
+        res = ccm.task(object.get_object_name()).option('-s').option('change_request').format('%displayname').run().splitlines()
+    except SynergyException:
+        res = []
+    for p in res[:1]: # avoid [0], the task id
+        change_requests.append(p.strip())
+    return change_requests
 
 def get_releases(object, ccm):
     # releases
