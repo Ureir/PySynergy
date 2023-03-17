@@ -114,8 +114,8 @@ class TaskObject(SynergyObject.SynergyObject):
     
     def get_change_requests(self):
         # list of four part names
-        return self.objects
+        return self.change_requests
 
     def set_change_request(self, requests):
         # list of four part names
-        self.objects = requests
+        self.change_requests = requests

@@ -446,11 +446,14 @@ def get_baselines_for_task(object, ccm):
 def get_change_requests_for_task(object, ccm):
     change_requests = []
     try:
-        res = ccm.task(object.get_object_name()).option('-s').option('change_request').format('%displayname').run().splitlines()
+        res = ccm.task(object.get_object_name(), formattable=True).option('-s').option('change_request').format('%displayname').run()
     except SynergyException:
         res = []
-    for p in res[:1]: # avoid [0], the task id
-        change_requests.append(p.strip())
+    # TODO : object name are prepended by Task ID : 'objectname': 'Task 46:\nproblem153~1:problem:probtrac'
+    # if we need object name we'll have to remove it.
+    # Result is a list of item, each item is a dictionary
+    for p in res:
+        change_requests.append(p['displayname'])
     return change_requests
 
 def get_releases(object, ccm):
