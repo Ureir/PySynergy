@@ -30,7 +30,7 @@ from SynergySession import SynergySession, SynergyException
 from TaskObject import TaskObject
 
 import string
-import cPickle
+import pickle
 import hashlib
 import os
 import os.path
@@ -130,7 +130,8 @@ def delete_object(obj):
 
 def get_path_for_object(obj, ccm_cache_path):
     m = hashlib.sha1()
-    m.update(obj)
+    # hashlib need encoded string
+    m.update(obj.encode())
     sha = m.hexdigest()
     dir = ccm_cache_path + sha[0:2]
     filename = dir + '/' + sha[2:-1]
@@ -144,9 +145,9 @@ def get_object_data_from_cache(obj, ccm_cache_path):
     # check if object exists
     if os.path.exists(datafile):
         # load the data file
-#        print 'Loading object %s from cache' %obj
+#        print('Loading object %s from cache' %obj)
         f = open(datafile, 'rb')
-        object_data = cPickle.load(f)
+        object_data = pickle.load(f)
         f.close()
         return object_data
     else:
@@ -182,7 +183,7 @@ def force_cache_update_for_object(object, ccm=None, ccm_cache_path=None):
             # just continue if it is already there
             pass
     f = open(datafile, 'wb')
-    cPickle.dump(object, f)
+    pickle.dump(object, f)
     f.close()
 
     type = object.get_type()
@@ -202,7 +203,7 @@ def update_cache(object, ccm, ccm_cache_path):
     datafile = filename + '_data'
     # check if object exists
     if os.path.exists(datafile):
-        raise ObjectCacheException("Object %s is already in cache" %object)
+        raise ObjectCacheException("Object {0} is already in cache {1}".format(object.get_object_name(), datafile))
     else:
         if not os.path.exists(dir):
             try:
@@ -211,13 +212,15 @@ def update_cache(object, ccm, ccm_cache_path):
                 # just continue if it is already there
                 pass
         f = open(datafile, 'wb')
-        cPickle.dump(object, f)
+        pickle.dump(object, f)
         f.close()
 
     type = object.get_type()
     if type != 'project' and type != 'task' and type != 'dir':
         # Store the content of the object
         content = get_content(object, ccm)
+        if not isinstance(content, bytes):
+            raise ObjectCacheException("content object is not bytes type : %s" % type(content).__name__)
         f = open(filename, 'wb')
         f.write(content)
         f.close()
@@ -234,6 +237,7 @@ def create_task_object(synergy_object, ccm):
     object = TaskObject(synergy_object.get_object_name(), synergy_object.get_separator(), synergy_object.get_author(), synergy_object.get_status(), synergy_object.get_created_time(), synergy_object.get_tasks())
     object.released_projects = get_projects_for_task(synergy_object, ccm)
     object.baselines = get_baselines_for_task(synergy_object, ccm)
+    object.change_requests = get_change_requests_for_task(synergy_object, ccm)
     return object
 
 def create_file_or_dir_object(synergy_object, ccm):
@@ -275,14 +279,14 @@ def get_object_from_ccm(four_part_name, ccm, ccm_cache_path):
     dcm_delim = '#'
     synergy_object = SynergyObject(four_part_name, delim, dcm_delim)
     try:
+        # create_time : be sur to force the format using client properties file (check INSTALL file)
         res = ccm.query("name='{0}' and version='{1}' and type='{2}' and instance='{3}'".format(synergy_object.get_name(), synergy_object.get_version(), synergy_object.get_type(), synergy_object.get_instance())).format("%objectname").format("%owner").format("%status").format("%create_time").format("%task").run()
     except SynergyException:
         raise ObjectCacheException("Couldn't query four-part-name of %s from Synergy" % four_part_name)
     if res:
         synergy_object.status = res[0]['status']
         synergy_object.author =  res[0]['owner']
-        synergy_object.created_time = datetime.strptime(res[0]['create_time'], "%d.%m.%y %H:%M")
-        # synergy_object.created_time = datetime.strptime(res[0]['create_time'], "%a %b %d %H:%M:%S %Y")
+        synergy_object.created_time = datetime.strptime(res[0]['create_time'], "%Y.%m.%d %H:%M:%S")
         tasks = []
 #        logger.debug(res[0]['task'])
         for t in res[0]['task'].split(','):
@@ -343,6 +347,8 @@ def update_object_cache_with_new_ccm_db_info(object, ccm):
             object.released_projects = list(set(object.released_projects + released_projects))
             baselines = get_baselines_for_task(object, ccm)
             object.baselines = list(set(object.baselines + baselines))
+            change_requests = get_change_requests_for_task(object,ccm)
+            object.change_requests = list( set(object.change_requests + change_requests))
         else:
             releases = get_releases(object, ccm)
             object.releases = list(set(object.releases + releases))
@@ -426,7 +432,7 @@ def get_projects_for_task(object, ccm):
         result = ccm.finduse(object.get_object_name()).option('-task').option('-released_proj').run().splitlines()
     except SynergyException:
         result = []
-    for p in result[1:]: # aviod [0], the task synopsis
+    for p in result[1:]: # avoid [0], the task synopsis
         projects.append(p.strip())
     return projects
 
@@ -440,6 +446,19 @@ def get_baselines_for_task(object, ccm):
     for b in res:
         baselines.append(b['objectname'])
     return baselines
+
+def get_change_requests_for_task(object, ccm):
+    change_requests = []
+    try:
+        res = ccm.task(object.get_object_name(), formattable=True).option('-s').option('change_request').format('%displayname').run()
+    except SynergyException:
+        res = []
+    # TODO : object name are prepended by Task ID : 'objectname': 'Task 46:\nproblem153~1:problem:probtrac'
+    # if we need object name we'll have to remove it.
+    # Result is a list of item, each item is a dictionary
+    for p in res:
+        change_requests.append(p['displayname'])
+    return change_requests
 
 def get_releases(object, ccm):
     # releases
@@ -455,9 +474,13 @@ def get_releases(object, ccm):
 
 def task_to_four_part(task, delim, dcm_delim):
     # Task four-part-name: task<tasknumber>-1:task:instance
-    logger.debug("Get task %s", task)
-#    split = task.split(dcm_delim)
-    four_part = ['task', task, delim, '1:task:', 'probtrac']
+    # to preserve compatibility with previous version we keep a test on # separator
+    if '#' in task:
+        split = task.split('#')
+        four_part = ['task', split[1], delim, '1:task:', split[0]]
+    else:
+        # in Synergy 7.2.1 the instance of a task is always 'probtrac', there is no # separator
+        four_part = ['task', task, delim, '1:task:', 'probtrac']
     return ''.join(four_part)
 
 def get_non_blacklisted_attributes(obj, ccm):
@@ -492,14 +515,14 @@ def strip_non_ascii(str):
 
 def load_ccm_cache_path():
     f = open('config.p', 'rb')
-    config = cPickle.load(f)
+    config = pickle.load(f)
     f.close()
 
     return config['ccm_cache_path']
 
 def create_ccm_session_from_config():
     f = open('config.p', 'rb')
-    config = cPickle.load(f)
+    config = pickle.load(f)
     f.close()
 
     ccm = SynergySession(config['server'], config['database'])

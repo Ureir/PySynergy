@@ -71,7 +71,8 @@ class SynergySession(object):
         if not ccm_addr:
             if not self.offline:
                 # Open the session
-                p = Popen(args, stdout=PIPE, stderr=PIPE, env=self.environment)
+                logger.info('Opening session : %s' %args )
+                p = Popen(args, stdout=PIPE, stderr=PIPE, env=self.environment, text=True)
                 # Store the session data
                 #p.wait()
                 stdout, stderr = p.communicate()
@@ -109,7 +110,7 @@ class SynergySession(object):
         if not self.keep_session_alive:
             self.stop()
             if not self.offline:
-                print "Stopping %s" % self.getCCM_ADDR()
+                print(("Stopping %s" % self.getCCM_ADDR()))
 
     def _reset_status(self):
         """Reset the status of the object"""
@@ -132,9 +133,11 @@ class SynergySession(object):
 
                 if (retrycount > 0): # more sleep on retry operations
                     time.sleep(0.2 * random.random())
-
-                p = Popen(command, stdout=PIPE, stderr=PIPE, env=self.environment)
-
+                
+                # By default we use Text mode for db instrospection, so we just check if it exist and set
+                popen_text_mode = self.status.get('popen_text_mode', True)
+                logger.debug("Execute command ({0}) in text mode ({1})".format(command, popen_text_mode) )
+                p = Popen(command, stdout=PIPE, stderr=PIPE, env=self.environment, text=popen_text_mode)
                 # Store the result as a single string. It will be splitted later
                 stdout, stderr = p.communicate()
 
@@ -160,7 +163,7 @@ class SynergySession(object):
         """Returns the delimiter defined in the Synergy DB"""
         self._reset_status()
         delim = self._run(['delim']).strip()
-        if delim is "":
+        if delim == "":
             return "-"
         return delim
 
@@ -174,6 +177,7 @@ class SynergySession(object):
         self.command = 'query'
         self.status['arguments'] = [query_string]
         self.status['formattable'] = True
+        self.status['popen_text_mode'] = True
         if 'format' not in self.status:
             self.status['format'] = ['%objectname']
         return self
@@ -183,6 +187,8 @@ class SynergySession(object):
         self.command = 'cat'
         self.status['arguments'] = [object_name]
         self.status['formattable'] = False
+        # Object file cat be binary file, hence we should read output in binary mode
+        self.status['popen_text_mode'] = False
         if 'format' in self.status:
             self.status['format'] = []
         return self

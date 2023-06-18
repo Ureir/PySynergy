@@ -22,7 +22,7 @@ FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.    IN NO EVENT SHALL THE COPYRI
 (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
 CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
-import cPickle
+import pickle
 import os
 import logging as logger
 
@@ -30,6 +30,7 @@ from SynergySession import SynergySession
 from SynergySessions import SynergySessions
 from CCMHistory import CCMHistory
 from load_configuration import load_config_file
+from load_configuration import setup_os_env
 
 def start_sessions(config):
     ccm = SynergySession(server=config['server'], database=config['database'])
@@ -43,7 +44,7 @@ def load_history(config):
     if os.path.isfile(filename):
         logger.info("Loading %s" %filename)
         fh = open(filename, 'rb')
-        history = cPickle.load(fh)
+        history = pickle.load(fh)
         fh.close()
     else:
         cwd = os.getcwd()
@@ -55,15 +56,22 @@ def load_history(config):
                         logger.info("Loading file %s" % str(f))
                         # Try to pickle it
                         fh = open(f, 'rb')
-                        hist = cPickle.load(fh)
+                        hist = pickle.load(fh)
                         fh.close()
-                        if 'name' in hist.keys():
+                        if 'name' in list(hist.keys()):
                             history[hist['name']] = hist
 
     logger.info("history contains: %s" % str(sorted(history.keys())))
 
     return history
 
+def setup_os_env(config):
+    for k,v in config['env'].items():
+            # detect path env variable to be added : it must start with PATH_
+            if k.startswith("PATH_"):
+                os.environ["PATH"] = v + os.pathsep + os.getenv("PATH")
+            else:
+                os.environ[k] = v
 
 def main():
 
@@ -72,23 +80,27 @@ def main():
     log_file = config['log_file']
     if not log_file.endswith('.log'):
         log_file += '.log'
-    FORMAT = '%(asctime)-15s %(message)s'
-    logger.basicConfig(filename=log_file, level=logger.DEBUG, format=FORMAT)
-
+    logger.basicConfig(filename=log_file, format='%(levelname)s - %(asctime)s - %(message)s', level=logger.DEBUG)
+    logger.info("START - Fetch history")
+    # set up system environment
+    setup_os_env(config)
+    
     ccm, ccm_pool = start_sessions(config)
     history = load_history(config)
 
     ccm_hist = CCMHistory(ccm, ccm_pool, history, config['data_file'])
     history = ccm_hist.get_project_history(config['master'], config['base_project'])
 
-#    if config.has_key('heads'):
-#        for head in config['heads']:
-#            history = ccm_hist.get_project_history(head, config['base_project'])
+    if 'heads' in config:
+        for head in config['heads']:
+            if ( (len(head) > 0) and not head.isspace() ):
+                history = ccm_hist.get_project_history(head, config['base_project'])
         
     fh = open(config['data_file'] + '.p', 'wb')
-    cPickle.dump(history, fh, cPickle.HIGHEST_PROTOCOL)
+    pickle.dump(history, fh, pickle.HIGHEST_PROTOCOL)
     fh.close()
 
+    logger.info("END - Fetch history")
     logger.shutdown()
 if __name__ == '__main__':
     main()

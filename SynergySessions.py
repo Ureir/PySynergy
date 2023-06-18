@@ -23,6 +23,7 @@ CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING 
 
 import sys
 import os
+import io
 import re
 import random
 from datetime import datetime, timedelta
@@ -31,8 +32,17 @@ from SynergySession import SynergySession
 import time
 from multiprocessing import Pool, Process, Queue
 
-sys.stdout =  os.fdopen(sys.stdout.fileno(), 'w', 0);
-sys.stderr =  os.fdopen(sys.stderr.fileno(), 'w', 0);
+
+# Disable output buffering :
+# https://stackoverflow.com/questions/107705/disable-output-buffering
+# reopen stdout file descriptor with write mode
+# and 0 as the buffer size (unbuffered)
+# Python 3, open as binary, then wrap in a TextIOWrapper with write-through.
+sys.stdout = io.TextIOWrapper(open(sys.stdout.fileno(), 'wb', 0), write_through=True)
+sys.stderr =  io.TextIOWrapper(open(sys.stderr.fileno(), 'wb', 0), write_through=True)
+# If flushing on newlines is sufficient, as of 3.7 you can instead just call:
+# sys.stdout.reconfigure(line_buffering=True)
+
 
 class SynergySessions(object):
     """This class is a wrapper around a pool of cm synergy sessions"""
@@ -51,8 +61,8 @@ class SynergySessions(object):
         """populate and array with synergy sessions"""
         create_sessions_pool(self.nr_sessions, self.server, self.database, self.engine, self.command_name, self.ccm_ui_path, self.ccm_eng_path, self.offline, self)
 
-        for k, v in self.sessionArray.iteritems():
-            print "session %d: %s" %(k, v.getCCM_ADDR())
+        for k, v in self.sessionArray.items():
+            print(("session %d: %s" %(k, v.getCCM_ADDR())))
             v.keep_session_alive = False
 
     def put_session(self, res):
@@ -77,9 +87,9 @@ def create_sessions_pool(nr_sessions, server, database, engine, command_name, cc
     for i in range(nr_sessions):
         pool.apply_async(create_session, (server, database, engine, command_name, ccm_ui_path, ccm_eng_path, offline, i), callback=session_cls.put_session )
         if offline:
-            print "Offline mode, just using cache"
+            print("Offline mode, just using cache")
         else:
-            print "starting session [" + str(i) + "]"
+            print(("starting session [" + str(i) + "]"))
 
     pool.close()
 

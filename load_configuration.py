@@ -22,18 +22,20 @@ FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.    IN NO EVENT SHALL THE COPYRI
 (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
 CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
-from ConfigParser import ConfigParser
-import cPickle
-
+from configparser import ConfigParser
+import pickle
+import os
 
 def save_config(config):
     f = open('config.p', 'wb')
-    cPickle.dump(config, f)
+    pickle.dump(config, f)
     f.close()
 
 def load_config_file():
 
     config_parser = ConfigParser()
+    # we need to be case sensitive for environment variables
+    config_parser.optionxform = str
     config_parser.read('configuration.conf')
     config = {}
     for k, v in config_parser.items('synergy'):
@@ -48,6 +50,8 @@ def load_config_file():
             v = [i.strip() for i in v]
         if k == 'skip_binary_files':
             v = config_parser.getboolean('synergy', 'skip_binary_files')
+        if k == 'offline':
+            v = config_parser.getboolean('synergy', 'offline')
         config[k]=v
     for k, v in config_parser.items('history conversion'):
         if k == 'print_graphs':
@@ -61,10 +65,23 @@ def load_config_file():
         for k,v in config_parser.items('finger'):
             config['finger'][k] = v
 
-    if config.has_key('heads'):
+    if 'heads' in config:
         if config['master'] in config['heads']:
             config['heads'].remove(config['master'])
 
     save_config(config)
 
+    if config_parser.has_section('env'):
+        config['env'] = {}
+        for k,v in config_parser.items('env'):
+            config['env'][k] = v
+            
     return config
+
+def setup_os_env(config):
+    for k,v in config['env'].items():
+            # detect path env variable to be added : it must start with PATH_
+            if k.startswith("PATH_"):
+                os.environ["PATH"] = v + os.pathsep + os.getenv("PATH")
+            else:
+                os.environ[k] = v

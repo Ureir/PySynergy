@@ -20,7 +20,7 @@ FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.    IN NO EVENT SHALL THE COPYRI
 (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
 CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
-import cPickle
+import pickle
 import os
 import user
 
@@ -37,7 +37,7 @@ class users(object):
 
     def get_user(self, username):
         # check if user exists in cache, otherwise fetch user from server
-        if self.users.has_key(username):
+        if username in self.users:
             return self.users[username]
         else:
             user = self.user.get_user_by_uid(username)
@@ -46,7 +46,7 @@ class users(object):
         return user
 
     def store_user(self, username):
-        if not self.users.has_key(username):
+        if username not in self.users:
             user = self.user.get_user_by_uid(username)
             self.users[username] = user
 
@@ -54,12 +54,12 @@ class users(object):
         users = {}
         if os.path.isfile(self.user_cache_file):
             f = open(self.user_cache_file, 'rb')
-            users = cPickle.load(f)
+            users = pickle.load(f)
             f.close()
         return users
 
     def save_user_cache(self, users):
         f = open(self.user_cache_file, 'wb')
-        cPickle.dump(users, f)
+        pickle.dump(users, f)
         f.close()
 

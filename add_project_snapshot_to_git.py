@@ -37,7 +37,7 @@ def run_command(command):
     return stdout
 
 def add_project(project, db, commit_msg, parent=None, branch_name=None, path=None):
-    print "Starting Synergy..."
+    print("Starting Synergy...")
     ccm = SynergySession(db)
     if not project_ok(project, ccm):
         raise Exception("Error no such Synergy project")
@@ -83,14 +83,14 @@ def add_project(project, db, commit_msg, parent=None, branch_name=None, path=Non
             if not 'did not match any files' in ex.value:
                 raise Exception("Error deleting files in {0}".format(cwd))
 
-    print "Creating snapshot of project"
+    print ("Creating snapshot of project")
     get_snapshot(project, ccm, cwd)
     # add everything to git
-    print "Adding project to git"
+    print ("Adding project to git")
     run_command(['git', 'add', '.'])
-    print "Committing..."
+    print ("Committing...")
     out = run_command(['git', 'commit', '-m', '\n'.join(commit_msg)])
-    print out
+    print (out)
     if '(no branch)' in get_current_branch():
         # detached head state
         current_commit = get_current_commit()
@@ -104,10 +104,10 @@ def add_project(project, db, commit_msg, parent=None, branch_name=None, path=Non
                 break
         # Checkout branch and fast-forward
         out = run_command(['git', 'checkout', '-q', branch.strip()])
-        print out
+        print (out)
         out = run_command(['git', 'merge', current_commit])
-        print out
-    print "Done"
+        print (out)
+    print ("Done")
 
 
 def get_parent_commit(commit):
@@ -150,45 +150,45 @@ def git_project_ok():
 def get_input(db, project, parent, branch, commit_msg, path):
     done = False
     if not project:
-        project = raw_input("Please enter project to import to git: ")
+        project = input("Please enter project to import to git: ")
     if not db:
-        db = raw_input("Please enter database: ")
+        db = input("Please enter database: ")
     if not parent:
-        parent = raw_input("Please enter parent (SHA or branch) \nif none the first commit will be selected as parent: ")
+        parent = input("Please enter parent (SHA or branch) \nif none the first commit will be selected as parent: ")
     if not branch:
-        branch = raw_input("Please enter branch name if new branch should be created: ")
+        branch = input("Please enter branch name if new branch should be created: ")
     if commit_msg == [None]:
-        print "Please enter commit message, when done enter %s on its own line:" % color_string('yellow', "'.'")
+        print(("Please enter commit message, when done enter %s on its own line:" % color_string('yellow', "'.'")))
         commit_msg = []
         while not done:
-            line = raw_input()
+            line = input()
             if line == '.':
                 done = True
             else:
                 commit_msg.append(line)
     if not path:
-        path = raw_input("Please enter path if different from project root: ")
+        path = input("Please enter path if different from project root: ")
     return db, project, parent, branch, commit_msg, path
 
 def input_ok(db, project, parent, branch, commit_msg, path):
     # Confirm that input is ok
-    print color_string('purple', "Please confirm information")
-    print "Database: " + color_string('green', db)
-    print "Project: %s will be imported" % color_string('green', project)
+    print((color_string('purple', "Please confirm information")))
+    print(("Database: " + color_string('green', db)))
+    print(("Project: %s will be imported" % color_string('green', project)))
     if parent:
-        print "Parent: " + color_string('green',parent)
+        print(("Parent: " + color_string('green',parent)))
     else:
-        print "No parent given, first commit will be used:"
+        print ("No parent given, first commit will be used:")
         commit = run_command(['git', 'log', '--oneline', '--format="%H %s"']).splitlines()[-1]
-        print color_string('red', commit)
+        print((color_string('red', commit)))
     if branch:
-        print "Branch %s will be created" % color_string('green', branch)
-    print "Commit message:\n" + color_string('green', '\n'.join(commit_msg))
+        print(("Branch %s will be created" % color_string('green', branch)))
+    print(("Commit message:\n" + color_string('green', '\n'.join(commit_msg))))
     if path:
-        print "Path: " + color_string("green", path)
-    print ""
+        print(("Path: " + color_string("green", path)))
+    print ("")
 
-    ok = raw_input(color_string('yellow', "Input ok (Y/n)?"))
+    ok = input(color_string('yellow', "Input ok (Y/n)?"))
     if not ok:
         # defaults to Y
         return True
@@ -197,7 +197,7 @@ def input_ok(db, project, parent, branch, commit_msg, path):
     return False
 
 def color_string(color, string):
-    if COLOR.has_key(color.upper()):
+    if color.upper() in COLOR:
         return COLOR[color.upper()] + string + COLOR['ENDC']
     else:
         return string

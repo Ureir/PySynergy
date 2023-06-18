@@ -39,7 +39,8 @@ class TaskObject(SynergyObject.SynergyObject):
         self.complete_time = None
         self.released_projects = None
         self.baselines = None
-
+        #List of change request IDs.
+        self.change_requests = None
 
     def get_display_name(self):
         name = [self.get_instance(), "#", self.get_name().strip('task')]
@@ -96,9 +97,9 @@ class TaskObject(SynergyObject.SynergyObject):
     def set_attributes(self, attributes):
         self.attributes = attributes
         self.complete_time = self.find_status_time('complete', self.attributes['status_log'], self.instance)
-        if 'task_description' in self.attributes.keys():
+        if 'task_description' in list(self.attributes.keys()):
             self.description = self.attributes['task_description']
-        if 'task_number' in self.attributes.keys():
+        if 'task_number' in list(self.attributes.keys()):
             self.attributes['task_number'] = self.get_display_name()
 
     def find_status_time(self, status, status_log, db):
@@ -110,3 +111,11 @@ class TaskObject(SynergyObject.SynergyObject):
                     earliest = time
 
         return earliest
+    
+    def get_change_requests(self):
+        # list of four part names
+        return self.change_requests
+
+    def set_change_request(self, requests):
+        # list of four part names
+        self.change_requests = requests

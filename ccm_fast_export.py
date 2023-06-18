@@ -23,8 +23,8 @@ FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.    IN NO EVENT SHALL THE COPYRI
 CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 from _collections import deque
-import cPickle
-import logging 
+import pickle
+import logging as logger
 from subprocess import Popen, PIPE
 import time
 from pygraph.classes.graph import graph
@@ -37,6 +37,7 @@ import convert_history as ch
 import ccm_history_to_graphs as htg
 import re
 from users import users
+import sys
 
 logger = logging.getLogger("ccm_fast_export.log")
 
@@ -53,7 +54,7 @@ def ccm_fast_export(releases, graphs):
     commit_lookup = {}
 
     # Get the  initial release
-    for k, v in releases.iteritems():
+    for k, v in releases.items():
         if k == 'delimiter':
             continue
         if k == 'ccm_types':
@@ -94,21 +95,23 @@ def ccm_fast_export(releases, graphs):
 
     mark = get_mark(mark)
 
+    # FIXME : what is this Nokia committer ?!!
     commit_info = ['reset refs/tags/' + release, 'commit refs/tags/' + release, 'mark :' + str(mark),
                    'author Nokia <nokia@nokia.com> ' + str(int(initial_release_time)) + " +0000",
                    'committer Nokia <nokia@nokia.com> ' + str(int(initial_release_time)) + " +0000", 'data 15',
                    'Initial commit', '\n'.join(files), '']
-    print '\n'.join(commit_info)
+    # Git does not allow '~' ':' => replace.
+    sys.stdout.buffer.write(('\n'.join(commit_info)).replace('~', '_tilde_').encode())
 
     logger.info("git-fast-import:\n%s" %('\n'.join(commit_info)))
 
-    tag_msg = 'Release: %s' %release
-    annotated_tag = ['tag %s' % release,
+    tag_msg = 'Release: %s' %release.replace('~', '_tilde_')
+    annotated_tag = ['tag %s' % release.replace('~', '_tilde_'),
                'from :%s' % str(mark),
                'tagger Nokia <nokia@nokia.com> ' + str(int(initial_release_time)) + " +0000",
                'data %s' % len(tag_msg),
                tag_msg]
-    print '\n'.join(annotated_tag)
+    sys.stdout.buffer.write(('\n'.join(annotated_tag)).encode())
     
     commit_lookup[release] = mark
     # do the following releases (graphs)
@@ -145,7 +148,7 @@ def ccm_fast_export(releases, graphs):
         logger.info("Ancestors of the release: %s" % str(ancestors[release]))
 
         # Clean up the ancestors matrix
-        for k, v in ancestors.iteritems():
+        for k, v in ancestors.items():
             if k in v:
                 v.remove(k)
 
@@ -160,7 +163,7 @@ def ccm_fast_export(releases, graphs):
 
         # Check if the release (Synergy project has changed name, if it has the
         # 'base' directory name needs to be renamed
-        if releases.has_key('delimiter'):
+        if 'delimiter' in releases:
             delim = releases['delimiter']
         else:
             delim = '-'
@@ -170,7 +173,7 @@ def ccm_fast_export(releases, graphs):
             logger.info("Name changed: %s -> %s" %(previous_name, current_name))
             from_mark = commit_lookup[previous_release]
             mark, commit = rename_toplevel_dir(previous_name, current_name, release, releases, mark, from_mark)
-            print '\n'.join(commit)
+            sys.stdout.buffer.write(('\n'.join(commit)).encode())
             # adjust the commit lookup
             commit_lookup[previous_release] = mark
 
@@ -209,9 +212,9 @@ def ccm_fast_export(releases, graphs):
             reference = [commit_lookup[ releases[release]['previous'] ] ]
 
         mark, merge_commit = create_release_merge_commit(releases, release, get_mark(mark), reference, graphs, set(ancestors[release]) - set(acn_ancestors))
-        print '\n'.join(merge_commit)
+        sys.stdout.buffer.write(('\n'.join(merge_commit)).encode())
         annotated_tag = create_annotated_tag(releases, release, mark)
-        print '\n'.join(annotated_tag)
+        sys.stdout.buffer.write(('\n'.join(annotated_tag)).encode())
 
         commit_lookup[release] = mark
         release_queue.extend(releases[release]['next'])
@@ -222,13 +225,16 @@ def ccm_fast_export(releases, graphs):
     master = get_master_tag()
     reset = ['reset refs/heads/master', 'from :' + str(commit_lookup[master])]
     logger.info("git-fast-import:\n%s" %('\n'.join(reset)))
-    print '\n'.join(reset)
+    sys.stdout.buffer.write(('\n'.join(reset)).encode())
 
+    # cleanup : for users to cleanup
+    users = None
+    
 def create_annotated_tag(releases, release, mark):
     global users
     tagger = users.get_user(releases[release]['author'])
-    msg = 'Release: %s' %release
-    tag_msg = ['tag %s' % release,
+    msg = 'Release: %s' %release.replace('~', '_tilde_')
+    tag_msg = ['tag %s' % release.replace('~', '_tilde_'),
                'from :%s' % str(mark),
                'tagger %s <%s> ' % (tagger['name'], tagger['mail']) + str(int(time.mktime(releases[release]['created'].timetuple()))) + " +0000",
                'data %s' % len(msg),
@@ -276,14 +282,14 @@ def create_release_merge_commit(releases, release, mark, reference, graphs, ance
 
     logger.info("File list: %i" % len(file_list))
     mark = get_mark(mark)
-    msg = ['commit refs/tags/' + release, 'mark :' + str(mark)]
+    msg = ['commit refs/tags/' + release.replace('~', '_tilde_'), 'mark :' + str(mark)]
     if 'author' not in releases[release]:
         releases[release]['author'] = "Nobody"
     author = users.get_user(releases[release]['author'])
     msg.append('author %s <%s> ' % (author['name'], author['mail']) + str(int(time.mktime(releases[release]['created'].timetuple()))) + " +0000")
     msg.append('committer %s <%s> ' % (author['name'], author['mail']) + str(int(time.mktime(releases[release]['created'].timetuple()))) + " +0000")
 
-    commit_msg = "Release " + release
+    commit_msg = "Release " + release.replace('~', '_tilde_')
     msg.append('data ' + str(len(commit_msg)))
     msg.append(commit_msg)
     msg.append('from :' + str(reference[0]))
@@ -341,7 +347,7 @@ def create_merge_commit(n, release, releases, mark, reference, graphs, ancestors
     else:
         mark, commit = make_commit_from_object(single_object, get_mark(mark), reference, release, file_list)
 
-    print '\n'.join(commit)
+    sys.stdout.buffer.write(('\n'.join(commit)).encode())
     return mark
 
 def create_commit(n, release, releases, mark, reference, graphs):
@@ -371,7 +377,7 @@ def create_commit(n, release, releases, mark, reference, graphs):
 
         file_list = create_file_list(objects, object_lookup, releases['ccm_types']['permissions'], releases[release]['fourpartname'])
         mark, commit = make_commit_from_task(task, n, get_mark(mark), reference, release, file_list)
-        print '\n'.join(commit)
+        sys.stdout.buffer.write(('\n'.join(commit)).encode())
         return mark
 
     else:
@@ -384,14 +390,14 @@ def create_commit(n, release, releases, mark, reference, graphs):
 
         file_list = create_file_list([single_object], object_lookup, releases['ccm_types']['permissions'], releases[release]['fourpartname'])
         mark, commit = make_commit_from_object(single_object, get_mark(mark), reference, release, file_list)
-        print '\n'.join(commit)
+        sys.stdout.buffer.write(('\n'.join(commit)).encode())
         return mark
 
 def make_commit_from_task(task, task_name, mark, reference, release, file_list):
     global users
     # Use the first task for author, time etc...
     author = users.get_user(task[0].get_author())
-    commit_info = ['commit refs/tags/' + release, 'mark :' + str(mark),
+    commit_info = ['commit refs/tags/' + release.replace('~', '_tilde_'), 'mark :' + str(mark),
                    'author %s <%s> ' % (author['name'], author['mail']) + str(
                        int(time.mktime(task[0].get_complete_time().timetuple()))) + " +0000",
                    'committer %s <%s> ' % (author['name'], author['mail']) + str(
@@ -412,7 +418,7 @@ def make_commit_from_task(task, task_name, mark, reference, release, file_list):
 def make_commit_from_object(o, mark, reference, release, file_list):
     global users
     author = users.get_user(o.get_author())
-    commit_info = ['commit refs/tags/' + release, 'mark :' + str(mark),
+    commit_info = ['commit refs/tags/' + release.replace('~', '_tilde_'), 'mark :' + str(mark),
                    'author %s <%s> ' % (author['name'], author['mail']) + str(
                        int(time.mktime(o.get_integrate_time().timetuple()))) + " +0000",
                    'committer %s <%s> ' % (author['name'], author['mail']) + str(
@@ -460,7 +466,7 @@ def create_file_list(objects, lookup, ccm_types, project, empty_dirs=None, empty
         l.append('D ' + project_object.name)
         # Insert all files in the release
         logger.info("Loading all objects for %s"  %project_object.get_object_name())
-        for object, paths in project_object.members.iteritems():
+        for object, paths in project_object.members.items():
             if not ':dir:' in object and not ':project:' in object:
                 perm = ccm_types[object.split(':')[1]]
                 for p in paths:
@@ -477,14 +483,14 @@ def create_file_list(objects, lookup, ccm_types, project, empty_dirs=None, empty
     return '\n'.join(l)
 
 def get_object_paths(object, project_paths):
-    if project_paths.has_key(object.get_object_name()):
+    if object.get_object_name() in project_paths:
         return project_paths[object.get_object_name()]
     path = get_path_of_object_in_release(object, project_paths)
     return path
 
 def get_path_of_object_in_release(object, project_paths):
     logger.info("Finding path of %s" %object.get_object_name())
-    for k, v in project_paths.iteritems():
+    for k, v in project_paths.items():
         if k.startswith(object.name):
             logger.info("Found similar object %s" % k)
             # Check if three part name matches:
@@ -508,15 +514,15 @@ def create_commit_msg_from_task(tasks, task_name):
         attr = task.get_attributes()
 
         #Do Task synopsis and description first
-        if attr.has_key('task_synopsis'):
+        if 'task_synopsis' in attr:
             msg.append(attr['task_synopsis'].strip())
             msg.append('')
-        if attr.has_key('task_description'):
+        if 'task_description' in attr:
             if not attr['task_description'].strip() == "":
                 msg.append('Synergy-description: %s' %attr['task_description'].strip())
                 msg.append('')
 
-        for k, v in attr.iteritems():
+        for k, v in attr.items():
             if k == 'task_synopsis':
                 continue
             if k == 'task_description':
@@ -526,6 +532,13 @@ def create_commit_msg_from_task(tasks, task_name):
             if not len(v.strip()):
                 continue
             msg.append('Synergy-'+k.replace('_', '-')+': '+v.strip().replace("\n", " "))
+            
+        crs = task.get_change_requests()
+        # Process the four-part-name & Apply same format as attributes
+        for cr in crs:
+                cr_txt = 'Synergy-problem-number: ' + cr
+                msg.append(cr_txt)
+
         msg.append('\n')
     return '\n'.join(msg)
 
@@ -564,12 +577,12 @@ def reduce_objects_for_commit(objects):
     objs = {}
     for o in objects:
         key = o.get_name() + ':' + o.get_type() + ':' + o.get_instance()
-        if key in objs.keys():
+        if key in list(objs.keys()):
             objs[key].append(o)
         else:
             objs[key] = [o]
 
-    for v in objs.values():
+    for v in list(objs.values()):
         o = sort_objects_by_history(v)
         ret_val.append(o)
 
@@ -608,14 +621,14 @@ def decide_type(obj):
 
 def create_blob(obj, mark):
     global object_mark_lookup
-    if object_mark_lookup.has_key(obj.get_object_name()):
+    if obj.get_object_name() in object_mark_lookup:
         object_mark = object_mark_lookup[obj.get_object_name()]
         logger.info("Used lookup-mark: %s for: %s" % (str(object_mark), obj.get_object_name()))
         return object_mark, mark
     else:
         #create the blob
         next_mark = get_mark(mark)
-        blob = ['blob', 'mark :' + str(next_mark)]
+        blob = [b'blob', b'mark :' + str(next_mark).encode()]
         logger.info("Creating lookup-mark: %s for %s" % (str(next_mark), obj.get_object_name()))
         if skip_binary():
             # Skip for binary files
@@ -628,15 +641,17 @@ def create_blob(obj, mark):
         else:
             content = ccm_cache.get_source(obj.get_object_name())
         length = len(content)
-        blob.append('data '+ str(length))
+        blob.append(b'data '+ str(length).encode())
+        # All data saved in file is stored as file : we must convert it
         blob.append(content)
-        print '\n'.join(blob)
+        # print() will interpret data to be displayed, use a non smart buffer write
+        sys.stdout.buffer.write((b'\n'.join(blob)))
         object_mark_lookup[obj.get_object_name()] = next_mark
         return next_mark, next_mark
 
 def create_blob_for_empty_dir(mark):
-    blob = ['blob', 'mark :' + str(mark), 'data 0']
-    print '\n'.join(blob)
+    blob = [b'blob', b'mark :' + str(mark).encode(), b'data 0\n']
+    sys.stdout.buffer.write((b'\n'.join(blob)))
     return mark
 
 def rename_toplevel_dir(previous_name, current_name, release, releases, mark, from_mark):
@@ -649,7 +664,7 @@ def rename_toplevel_dir(previous_name, current_name, release, releases, mark, fr
     # Use the release time from previous release
     create_time = time.mktime(releases[releases[release]['previous']]['created'].timetuple())
 
-    commit_info = ['commit refs/tags/' + release,
+    commit_info = ['commit refs/tags/' + release.replace('~', '_tilde_'),
                    'mark :' + str(mark),
                    'author %s <%s@nokia.com> ' % (author['name'], author['mail']) + str(int(create_time)) + " +0000",
                    'committer %s <%s@nokia.com> ' % (author['name'], author['mail']) + str(int(create_time)) + " +0000"]
@@ -675,7 +690,7 @@ def get_mark(mark):
 
 def get_master_tag():
     f = open('config.p', 'rb')
-    config = cPickle.load(f)
+    config = pickle.load(f)
     f.close()
     object = ccm_cache.get_object(config['master'])
     tag = object.name + object.separator + object.version
@@ -683,7 +698,7 @@ def get_master_tag():
 
 def skip_binary():
     f = open('config.p', 'rb')
-    config = cPickle.load(f)
+    config = pickle.load(f)
     f.close()
     return config['skip_binary_files']
 
