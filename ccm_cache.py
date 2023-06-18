@@ -275,7 +275,9 @@ def get_object_from_ccm(four_part_name, ccm, ccm_cache_path):
     """Try to get the object's meta data from Synergy"""
     # convert the four-part-name to a synergy object:
     delim = ccm.delim()
-    synergy_object = SynergyObject(four_part_name, delim)
+    #dcm_delim = ccm.dcm_delim()
+    dcm_delim = '#'
+    synergy_object = SynergyObject(four_part_name, delim, dcm_delim)
     try:
         # create_time : be sur to force the format using client properties file (check INSTALL file)
         res = ccm.query("name='{0}' and version='{1}' and type='{2}' and instance='{3}'".format(synergy_object.get_name(), synergy_object.get_version(), synergy_object.get_type(), synergy_object.get_instance())).format("%objectname").format("%owner").format("%status").format("%create_time").format("%task").run()
@@ -286,10 +288,12 @@ def get_object_from_ccm(four_part_name, ccm, ccm_cache_path):
         synergy_object.author =  res[0]['owner']
         synergy_object.created_time = datetime.strptime(res[0]['create_time'], "%Y.%m.%d %H:%M:%S")
         tasks = []
+#        logger.debug(res[0]['task'])
         for t in res[0]['task'].split(','):
             if t != '<void>':
+                logger.debug("Adding task %s", t)
                 if ':task:' not in t:
-                    tasks.append(task_to_four_part(t, delim))
+                    tasks.append(task_to_four_part(t, delim, dcm_delim))
                 else:
                     tasks.append(t)
         synergy_object.tasks = tasks
@@ -468,7 +472,7 @@ def get_releases(object, ccm):
     return releases
 
 
-def task_to_four_part(task, delim):
+def task_to_four_part(task, delim, dcm_delim):
     # Task four-part-name: task<tasknumber>-1:task:instance
     # to preserve compatibility with previous version we keep a test on # separator
     if '#' in task:
@@ -521,7 +525,7 @@ def create_ccm_session_from_config():
     config = pickle.load(f)
     f.close()
 
-    ccm = SynergySession(config['database'])
+    ccm = SynergySession(config['server'], config['database'])
     return ccm
 
 def get_content(object, ccm):

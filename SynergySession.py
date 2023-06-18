@@ -30,8 +30,9 @@ from subprocess import Popen, PIPE
 class SynergySession(object):
     """This class is a wrapper around the Synergy command line client"""
 
-    def __init__(self, database, engine=None, command_name='ccm', ccm_ui_path='/dev/null', ccm_eng_path='/dev/null', ccm_addr=None, offline=False):
+    def __init__(self, server, database, engine=None, command_name='ccm', ccm_ui_path='/dev/null', ccm_eng_path='/dev/null', ccm_addr=None, offline=False):
         self.command_name = command_name
+        self.server = server
         self.database = database
         self.engine = engine
         self.sessionID = -1 # set to -1 for singular sessions; for multiple sessions populate from zero and up after creating the individual sessions
@@ -50,6 +51,8 @@ class SynergySession(object):
         args = [self.command_name]
         args.append('start')
         args.append('-nogui')
+        args.append('-s')
+        args.append(self.server)
         args.append('-d')
         args.append(self.database) # database
         args.append('-m') # permit multiple sessions
@@ -123,7 +126,7 @@ class SynergySession(object):
 
         if not self.offline:
             # retry all commands 3 times to patch over ccm concurrency issues
-            for retrycount in range(3):
+            for retrycount in range(5):
                 # stagger parallel commands to patch over ccm concurrency issues
                 if (self.sessionID >= 0):
                     time.sleep(0.2 * random.random())
@@ -140,6 +143,11 @@ class SynergySession(object):
 
                 if not stderr:
                     break
+                
+                if "Cannot connect to router" in stderr:
+                    # Synergy Wartungsfenster? X Sekunden warten
+                    time.sleep(30 * 60)
+
 
             if stderr:
                 raise SynergyException('Error while running the Synergy command: %s \nError message: %s' % (command, stderr))

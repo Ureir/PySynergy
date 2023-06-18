@@ -47,14 +47,14 @@ import ccm_cache
 
 logger = logging.getLogger("objects in project")
 
-def get_objects_in_project(project, ccm=None, database=None, ccmpool=None, use_cache=False):
+def get_objects_in_project(project, ccm=None, server=None, database=None, ccmpool=None, use_cache=False):
     """ Get all objects and paths in project
         If use_cache is enabled all objects will stored in cache area
     """
     start = time.time()
     if ccmpool:
         if ccmpool.nr_sessions == 1:
-            result = get_objects_in_project_serial(project, ccm=ccmpool[0], database=database, use_cache=use_cache)
+            result = get_objects_in_project_serial(project, ccm=ccmpool[0], server=server, database=database, use_cache=use_cache)
         else:
             result = get_objects_in_project_parallel(project, ccmpool=ccmpool, use_cache=use_cache)
     else:
@@ -68,13 +68,16 @@ def get_objects_in_project(project, ccm=None, database=None, ccmpool=None, use_c
     return result
 
 
-def get_objects_in_project_serial(project, ccm=None, database=None, use_cache=False):
+def get_objects_in_project_serial(project, ccm=None, server=None, database=None, use_cache=False):
     """ Get all objects and paths of a project """
     if not ccm:
         if not database:
             raise SynergyException("No ccm instance nor database given\n" +
                                    "Cannot start ccm session!\n")
-        ccm = SynergySession(database)
+        if not server:
+            raise SynergyException("No ccm server\n" +
+                                   "Cannot start ccm session!\n")
+        ccm = SynergySession(server, database)
     else:
         logger.debug("ccm instance: %s" % ccm.environment['CCM_ADDR'])
 
@@ -311,7 +314,7 @@ def get_and_lock_free_ccm_addr(free_ccm):
             # of update
             entry['free'] = False
             free_ccm[k] = entry
-            return k, free_ccm[k]['database']
+            return k, free_ccm[k]['server'], free_ccm[k]['database']
 
 
 def get_objects_in_project_parallel(project, ccmpool=None, use_cache=False):
@@ -322,8 +325,8 @@ def get_objects_in_project_parallel(project, ccmpool=None, use_cache=False):
 
     for ccm in list(ccmpool.sessionArray.values()):
         free_ccm[ccm.getCCM_ADDR()] = {'free': True, 'database': ccm.database}
-    ccm_addr, database = get_and_lock_free_ccm_addr(free_ccm)
-    ccm = SynergySession(database, ccm_addr=ccm_addr)
+    ccm_addr, server, database = get_and_lock_free_ccm_addr(free_ccm)
+    ccm = SynergySession(server, database, ccm_addr=ccm_addr)
     ccm.keep_session_alive = True
     delim = ccm.delim()
 

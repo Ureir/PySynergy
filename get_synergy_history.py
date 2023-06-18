@@ -33,8 +33,8 @@ from load_configuration import load_config_file
 from load_configuration import setup_os_env
 
 def start_sessions(config):
-    ccm = SynergySession(config['database'], offline=config['offline'])
-    ccm_pool = SynergySessions(database=config['database'], nr_sessions=config['max_sessions'], offline=config['offline'])
+    ccm = SynergySession(server=config['server'], database=config['database'])
+    ccm_pool = SynergySessions(server=config['server'], database=config['database'], nr_sessions=config['max_sessions'])
 
     return ccm, ccm_pool
 

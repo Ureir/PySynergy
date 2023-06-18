@@ -26,7 +26,6 @@ FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.    IN NO EVENT SHALL THE COPYRI
 (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
 CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
-from SynergySession import SynergySession
 from SynergyObject import SynergyObject
 
 def get_types_and_permissions(ccm):
@@ -59,7 +58,7 @@ def get_all_types(ccm):
 
 def get_super_types(ccm):
     type_dict = {}
-    types = get_all_types(ccm)
+    #types = get_all_types(ccm)
 
     # Map each type to permission
     for t in types:
@@ -81,4 +80,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 

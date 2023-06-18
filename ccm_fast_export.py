@@ -39,14 +39,17 @@ import re
 from users import users
 import sys
 
+logger = logging.getLogger("ccm_fast_export.log")
+
 object_mark_lookup = {}
 users
 
 def ccm_fast_export(releases, graphs):
     global acn_ancestors
+    acn_ancestors = []
     global users
     users = users()
-    logger.basicConfig(filename='ccm_fast_export.log',level=logger.DEBUG)
+#    logger.basicConfig(filename='ccm_fast_export.log',level=logger.DEBUG)
 
     commit_lookup = {}
 

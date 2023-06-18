@@ -73,8 +73,8 @@ def populate_cache_with_objects_from_project(project, ccm, ccmpool):
         populate_cache_with_project_and_members(project, ccm, ccmpool)
 
 def start_sessions(config):
-    ccm = SynergySession(config['database'])
-    ccm_pool = SynergySessions(database=config['database'], nr_sessions=config['max_sessions'])
+    ccm = SynergySession(server=config['server'], database=config['database'])
+    ccm_pool = SynergySessions(server=config['server'], database=config['database'], nr_sessions=config['max_sessions'])
     return ccm, ccm_pool
 
 def main():
